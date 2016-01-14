@@ -166,7 +166,7 @@ class LKFlowNodelet : public nodelet::Nodelet
       if( needToInit )
       {
         // automatic initialization
-        cv::goodFeaturesToTrack(gray, points[1], MAX_COUNT, 0.01, 10, cv::Mat(), 3, 0, 0.04);
+        cv::goodFeaturesToTrack(gray, points[1], MAX_COUNT, 0.001, 10, cv::Mat(), 3, 0, 0.04);
         cv::cornerSubPix(gray, points[1], subPixWinSize, cv::Size(-1,-1), termcrit);
         addRemovePt = false;
       }
@@ -178,6 +178,7 @@ class LKFlowNodelet : public nodelet::Nodelet
           gray.copyTo(prevGray);
         cv::calcOpticalFlowPyrLK(prevGray, gray, points[0], points[1], status, err, winSize,
                                  3, termcrit, 0, 0.001);
+
         size_t i, k;
         for( i = k = 0; i < points[1].size(); i++ )
         {
@@ -277,9 +278,9 @@ class LKFlowNodelet : public nodelet::Nodelet
   void subscribe()
   {
     NODELET_DEBUG("Subscribing to image topic.");
-    if (config_.use_camera_info)
-      cam_sub_ = it_->subscribeCamera("image", 3, &LKFlowNodelet::imageCallbackWithInfo, this);
-    else
+    // if (config_.use_camera_info)
+    //   cam_sub_ = it_->subscribeCamera("image", 3, &LKFlowNodelet::imageCallbackWithInfo, this);
+    // else
       img_sub_ = it_->subscribe("image", 3, &LKFlowNodelet::imageCallback, this);
   }
 
@@ -341,8 +342,8 @@ public:
     image_transport::SubscriberStatusCallback img_disconnect_cb = boost::bind(&LKFlowNodelet::img_disconnectCb, this, _1);
     ros::SubscriberStatusCallback msg_connect_cb    = boost::bind(&LKFlowNodelet::msg_connectCb, this, _1);
     ros::SubscriberStatusCallback msg_disconnect_cb = boost::bind(&LKFlowNodelet::msg_disconnectCb, this, _1);
-    img_pub_ = image_transport::ImageTransport(local_nh_).advertise("image", 1, img_connect_cb, img_disconnect_cb);
-    msg_pub_ = local_nh_.advertise<opencv_apps::FlowArrayStamped>("flows", 1, msg_connect_cb, msg_disconnect_cb);
+    img_pub_ = image_transport::ImageTransport(local_nh_).advertise("image", 20, img_connect_cb, img_disconnect_cb);
+    msg_pub_ = local_nh_.advertise<opencv_apps::FlowArrayStamped>("flows", 20, msg_connect_cb, msg_disconnect_cb);
     initialize_points_service_ = local_nh_.advertiseService("initialize_points", &LKFlowNodelet::initialize_points_cb, this);
     delete_points_service_ = local_nh_.advertiseService("delete_points", &LKFlowNodelet::delete_points_cb, this);
     toggle_night_mode_service_ = local_nh_.advertiseService("toggle_night_mode", &LKFlowNodelet::toggle_night_mode_cb, this);

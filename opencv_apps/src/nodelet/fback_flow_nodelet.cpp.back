@@ -1,4 +1,3 @@
-
 /*********************************************************************
 * Software License Agreement (BSD License)
 *
@@ -56,7 +55,6 @@ namespace fback_flow {
 class FBackFlowNodelet : public nodelet::Nodelet
 {
   image_transport::Publisher img_pub_;
-  image_transport::Publisher norm_img_pub_;
   image_transport::Subscriber img_sub_;
   image_transport::CameraSubscriber cam_sub_;
   ros::Publisher msg_pub_;
@@ -74,7 +72,7 @@ class FBackFlowNodelet : public nodelet::Nodelet
   std::string window_name_;
   static bool need_config_update_;
 
-  cv::Mat prevgray, gray, flow, cflow, norm_image;
+  cv::Mat prevgray, gray, flow, cflow;
 
   void reconfigureCallback(fback_flow::FBackFlowConfig &new_config, uint32_t level)
   {
@@ -115,20 +113,18 @@ class FBackFlowNodelet : public nodelet::Nodelet
     {
       // Convert the image into something opencv can handle.
       cv::Mat frame = cv_bridge::toCvShare(msg, msg->encoding)->image;
-      cv::Mat norm_image = cv::Mat::zeros(cv::Size(640,480), CV_8U);
+
       // Messages
       opencv_apps::FlowArrayStamped flows_msg;
       flows_msg.header = msg->header;
 
       if( debug_view_) {
-        cv::namedWindow( window_name_, cv::WINDOW_AUTOSIZE );
-        cv::namedWindow( "test_image", cv::WINDOW_AUTOSIZE );
-        if (need_config_update_) {
-          srv.updateConfig(config_);
+         cv::namedWindow( window_name_, cv::WINDOW_AUTOSIZE );
+         if (need_config_update_) {
+           srv.updateConfig(config_);
           need_config_update_ = false;
-        }
+         }
       }
-
       // Do the work
       if ( frame.channels() > 1 ) {
         cv::cvtColor( frame, gray, cv::COLOR_BGR2GRAY );
@@ -140,11 +136,11 @@ class FBackFlowNodelet : public nodelet::Nodelet
         cv::calcOpticalFlowFarneback(prevgray, gray, flow, 0.5, 3, 15, 3, 5, 1.2, 0);
         cv::cvtColor(prevgray, cflow, cv::COLOR_GRAY2BGR);
         //drawOptFlowMap(flow, cflow, 16, 1.5, Scalar(0, 255, 0));
-        int step = 5;
+        int step = 10;
         cv::Scalar color = cv::Scalar(0, 255, 0);
-        //std::vector<int> norm;
-        double norm_tmp;
-        double thre = 10;
+        //std::vector <double> norm;
+        //double norm_tmp;
+        //double thre = 10;
         for(int y = 0; y < cflow.rows; y += step)
           for(int x = 0; x < cflow.cols; x += step)
         {
@@ -163,59 +159,37 @@ class FBackFlowNodelet : public nodelet::Nodelet
           flow_msg.point = point_msg;
           flow_msg.velocity = velocity_msg;
           flows_msg.flow.push_back(flow_msg);
-          norm_tmp = sqrt((fxy.x * fxy.x) + (fxy.y * fxy.y));
-          if (norm_tmp > 1)
-            {
-              norm_image.at<unsigned char> (y,x) = 255;
-            }
-          //if (norm_tmp > thre)
-          //  {
-              //norm.push_back(0);
-              //cv::Point(x,y).data = 255;
-          //  }
-          // else {
-          //   norm.push_back(255);
+          //norm_tmp = sqrt((fxy.x * fxy.x) + (fxy.y * fxy.y));
+          // if (norm_tmp > thre)
+          //   { 
+          //     norm.push_back(255);
+          //   } else {
+          //     norm.push_back(0);
           // }
-          //norm.push_back(255);
+          //float norm = cv::norm(fxy.x,fxy.y);
+          //std::cout << "norm:" << norm ;
         }
-        // for (int i = 0; i < norm.size() ; i++)
-        //   {
-        //     std::cout << "norm:" << norm[i] ;
-        //   }
-        //cv::Mat norm_image(norm);
-        // if( prevgray.data )
-        //   {
-        //     std::cout << "prevgray.data is true" ;
-        //   } else {
-        //     std::cout << "prevgray.data is false" ;
-        //   }
-        // std::cout << "hogehoge";
-            //cv::Mat norm_image = gray;
-      }
 
       std::swap(prevgray, gray);
 
       //-- Show what you got
       if( debug_view_) {
         cv::imshow( window_name_, cflow );
-        cv::imshow( "test_image", norm_image);
         int c = cv::waitKey(1);
       }
 
 
       // Publish the image.
       sensor_msgs::Image::Ptr out_img = cv_bridge::CvImage(msg->header, msg->encoding, cflow).toImageMsg();
-      sensor_msgs::Image::Ptr norm_img = cv_bridge::CvImage(msg->header, sensor_msgs::image_encodings::MONO8, norm_image).toImageMsg();
       img_pub_.publish(out_img);
-      norm_img_pub_.publish(norm_img);
       msg_pub_.publish(flows_msg);
-    }
+        }
+      }
     catch (cv::Exception &e)
     {
       NODELET_ERROR("Image processing error: %s %s %s %i", e.err.c_str(), e.func.c_str(), e.file.c_str(), e.line);
     }
-
-    prev_stamp_ = msg->header.stamp;
+      prev_stamp_ = msg->header.stamp;
   }
 
   void subscribe()
@@ -271,7 +245,7 @@ public:
     it_ = boost::shared_ptr<image_transport::ImageTransport>(new image_transport::ImageTransport(nh_));
     local_nh_ = ros::NodeHandle("~");
 
-    local_nh_.param("debug_view", debug_view_, true);
+    local_nh_.param("debug_view", debug_view_, false);
     subscriber_count_ = 0;
     prev_stamp_ = ros::Time(0, 0);
 
@@ -283,7 +257,6 @@ public:
     ros::SubscriberStatusCallback msg_disconnect_cb = boost::bind(&FBackFlowNodelet::msg_disconnectCb, this, _1);
     img_pub_ = image_transport::ImageTransport(local_nh_).advertise("image", 1, img_connect_cb, img_disconnect_cb);
     msg_pub_ = local_nh_.advertise<opencv_apps::FlowArrayStamped>("flows", 1, msg_connect_cb, msg_disconnect_cb);
-    norm_img_pub_ = image_transport::ImageTransport(local_nh_).advertise("norm_image", 1, img_connect_cb, img_disconnect_cb);
 
     if( debug_view_ ) {
       subscriber_count_++;
@@ -295,7 +268,9 @@ public:
   }
 };
 bool FBackFlowNodelet::need_config_update_ = false;
-}
+};
+
+
 
 #include <pluginlib/class_list_macros.h>
 PLUGINLIB_EXPORT_CLASS(fback_flow::FBackFlowNodelet, nodelet::Nodelet);

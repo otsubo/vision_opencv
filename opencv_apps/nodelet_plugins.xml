@@ -47,6 +47,10 @@
   <class name="lk_flow/lk_flow" type="lk_flow::LKFlowNodelet" base_class_type="nodelet::Nodelet">
     <description>Nodelet to calculate Lukas-Kanade optical flow</description>
   </class>
+  
+  <class name="dense_flow/dense_flow" type="dense_flow::DenseFlowNodelet" base_class_type="nodelet::Nodelet">
+    <description>Nodelet to calculate dense optical flow</description>
+  </class>
 
   <class name="people_detect/people_detect" type="people_detect::PeopleDetectNodelet" base_class_type="nodelet::Nodelet">
     <description>Nodelet to demonstrate the use of the HoG descriptor</description>
