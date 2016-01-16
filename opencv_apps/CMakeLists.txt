@@ -3,7 +3,10 @@ project(opencv_apps)
 
 find_package(catkin REQUIRED COMPONENTS cv_bridge dynamic_reconfigure message_generation image_transport nodelet roscpp)
 
-find_package(OpenCV REQUIRED)
+find_package(OpenCV 2 REQUIRED)
+message(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+message("${OpenCV_VERSION}")
+message("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 if (OpenCV_VERSION VERSION_EQUAL "3")
   set(${PROJECT_NAME}_EXTRA_CFG)
   set(${PROJECT_NAME}_EXTRA_FILES)
@@ -22,6 +25,7 @@ generate_dynamic_reconfigure_options(
   cfg/CamShift.cfg
   cfg/FBackFlow.cfg
   cfg/LKFlow.cfg
+  #cfg/DenseFlow.cfg
   cfg/PeopleDetect.cfg
   cfg/PhaseCorr.cfg
   cfg/SegmentObjects.cfg
@@ -76,8 +80,13 @@ catkin_package()
 
 include_directories( ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 
+message(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+message("${OpenCV_INCLUDE_DIRS}")
+message("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+
 ## Declare a cpp library
 add_library(${PROJECT_NAME} SHARED
+  #src/nodelet/dense_flow.cpp
   # https://github.com/Itseez/opencv/blob/2.4/samples/cpp/tutorial_code
   # ImgTrans
   src/nodelet/edge_detection_nodelet.cpp
@@ -144,6 +153,7 @@ add_library(${PROJECT_NAME} SHARED
   # letter_recog.cpp
   # linemod.cpp
   src/nodelet/lk_flow_nodelet.cpp
+  #src/nodelet/dense_flow_nodelet.cpp
   # logpolar_bsm.cpp
   # matcher_simple.cpp
   # matching_to_many_images.cpp
@@ -245,6 +255,10 @@ add_executable(lk_flow_exe src/node/lk_flow.cpp)
 SET_TARGET_PROPERTIES(lk_flow_exe PROPERTIES OUTPUT_NAME lk_flow)
 target_link_libraries(lk_flow_exe ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
+# add_executable(dense_flow_exe src/node/dense_flow.cpp)
+# SET_TARGET_PROPERTIES(dense_flow_exe PROPERTIES OUTPUT_NAME dense_flow)
+# target_link_libraries(dense_flow_exe ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
 add_executable(people_detect_exe src/node/people_detect.cpp)
 SET_TARGET_PROPERTIES(people_detect_exe PROPERTIES OUTPUT_NAME people_detect)
 target_link_libraries(people_detect_exe ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
@@ -278,7 +292,7 @@ target_link_libraries(watershed_segmentation_exe ${catkin_LIBRARIES} ${OpenCV_LI
 
 
 install(TARGETS edge_detection_exe hough_lines_exe hough_circles_exe face_detection_exe goodfeature_track_exe
-  camshift_exe fback_flow_exe lk_flow_exe people_detect_exe phase_corr_exe segment_objects_exe watershed_segmentation_exe
+  camshift_exe simple_example_exe simple_compressed_example_exe fback_flow_exe lk_flow_exe people_detect_exe phase_corr_exe segment_objects_exe watershed_segmentation_exe
         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 install(FILES nodelet_plugins.xml

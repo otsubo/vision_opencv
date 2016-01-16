@@ -1,0 +1,167 @@
+<!-- -*- mode: xml -*- -->
+<launch>
+  <arg name="INPUT_IMAGE" default="/camera/rgb/image_raw"/>
+  <arg name="INPUT_CAMERA_INFO" default="/camera/rgb/camera_info"/>
+  <arg name="INPUT_POINT_CLOUD" default="/camera/depth_registered/points" />
+
+  <arg name="OUTPUT" default="rgb_output"/>
+  <arg name="CENTROID_FRAME" default="target"/>
+  <arg name="DEFAULT_NAMESPACE" default="stem_detector"/>
+  <arg name="MACHINE" default="localhost"/>
+  <machine name="localhost" address="localhost"/>
+  <arg name="MANAGER" default="rgb_filter_manager" />
+
+  <arg name="r_max" default="135" />
+  <arg name="r_min" default="5" />
+  <arg name="g_max" default="204" />
+  <arg name="g_min" default="45" />
+  <arg name="b_max" default="45" />
+  <arg name="b_min" default="0" />
+
+  <arg name="create_manager" default="true" />
+  <arg name="manager" default="stem_detector" />
+
+  <group ns="$(arg DEFAULT_NAMESPACE)">
+    <node if="$(arg create_manager)"
+          pkg="nodelet" type="nodelet" name="$(arg manager)"
+          args="manager" output="screen"/>
+
+    <node pkg="nodelet" type="nodelet" name="zfilter"
+          args="load pcl/PassThrough $(arg manager)" output="screen">
+      <remap from="~input" to="$(arg INPUT_POINT_CLOUD)" />
+      <rosparam>
+        filter_field_name: z
+        filter_limit_min: 0.0
+        filter_limit_max: 2.0
+      </rosparam>
+    </node>
+
+  <node pkg="image_view2" type="image_view2" name="image_view2">
+    <remap from="image" to="$(arg INPUT_IMAGE)" />
+    <rosparam>
+      interaction_mode: grabcut_rect
+    </rosparam>
+  </node>
+
+  <!-- <node pkg="jsk_pcl_ros" type="tf_transform_cloud" name="camera_origin_cloud"> -->
+  <!--   <remap from="~input" to="$(arg INPUT_POINT_CLOUD)" /> -->
+  <!--   <rosparam> -->
+  <!--     target_frame_id: camera_rgb_optical_frame -->
+  <!--   </rosparam> -->
+  <!-- </node> -->
+
+  <node pkg="jsk_pcl_ros" type="mask_image_filter" name="mask_image_filter">
+    <remap from="~input" to="$(arg INPUT_POINT_CLOUD)"/>
+    <remap from="~input/mask" to="$(arg INPUT_IMAGE)/foreground"/>
+    <remap from="~input/camera_info" to="$(arg INPUT_CAMERA_INFO)" />
+  </node>
+
+  <node pkg="nodelet" type="nodelet" name="filtered_cloud"
+        args="standalone pcl/ExtractIndices">
+    <remap from="~input" to="$(arg INPUT_POINT_CLOUD)"/>
+    <remap from="~indices" to="mask_image_filter/output"/>
+    <rosparam>
+      max_queue_size: 20
+      approximate_sync: true
+    </rosparam>
+  </node>
+
+  <node pkg="nodelet" type="nodelet" name="filtered_cloud2"
+        args="standalone pcl/ExtractIndices">
+    <remap from="~input" to="$(arg INPUT_POINT_CLOUD)"/>
+    <remap from="~indices" to="mask_image_filter2/output"/>
+    <rosparam>
+      max_queue_size: 20
+      approximate_sync: true
+    </rosparam>
+  </node>
+
+  <node pkg="image_view" type="image_view" name="debug_view">
+    <remap from="image" to="$(arg INPUT_IMAGE)/foreground"/>
+  </node>
+  <node pkg="image_view" type="image_view" name="debug_view2">
+    <remap from="image" to="$(arg INPUT_IMAGE)/background"/>
+  </node>
+
+
+
+    <node pkg="nodelet" type="nodelet" name="rgb_filter"
+          args="load jsk_pcl/RGBColorFilter $(arg manager)" output="screen">
+      <remap from="~input" to="filtered_cloud/output" />
+      <remap from="~output" to="$(arg OUTPUT)" />
+      <rosparam>
+        use_indices: false
+      </rosparam>
+      <param name="r_limit_max" value="$(arg r_max)" />
+      <param name="r_limit_min" value="$(arg r_min)" />
+      <param name="g_limit_max" value="$(arg g_max)" />
+      <param name="g_limit_min" value="$(arg g_min)" />
+      <param name="b_limit_max" value="$(arg b_max)" />
+      <param name="b_limit_min" value="$(arg b_min)" />
+    </node>
+
+    <node pkg="nodelet" type="nodelet" name="zfilter2"
+          args="load pcl/PassThrough $(arg manager)" output="screen">
+      <remap from="~input" to="$(arg OUTPUT)" />
+      <rosparam>
+        filter_field_name: z
+        filter_limit_min: 0.0
+        filter_limit_max: 1.5
+      </rosparam>
+    </node>
+
+
+    <node pkg="nodelet" type="nodelet" name="euclidean_clustering"
+          args="load jsk_pcl/EuclideanClustering $(arg manager)" output="screen">
+      <remap from="~input" to="$(arg OUTPUT)" />
+      <rosparam>
+        tolerance: 0.002
+        min_size: 10
+      </rosparam>
+    </node>
+
+    <node pkg="nodelet" type="nodelet"
+          name="cluster_decomposer"
+          args="load jsk_pcl/ClusterPointIndicesDecomposer $(arg manager)"
+          output="screen" clear_params="true">
+      <remap from="~input" to="filtered_cloud/output" />
+      <remap from="~target" to="euclidean_clustering/output" />
+      <rosparam>
+        approximate_sync: true
+        queue_size: 500
+      </rosparam>
+    </node>
+
+    <!-- <node pkg="nodelet" type="nodelet" -->
+    <!--       name="cluster_decomposer" -->
+    <!--       machine="$(arg MACHINE)" -->
+    <!--       args="load jsk_pcl/ClusterPointIndicesDecomposer $(arg MANAGER)" -->
+    <!--       output="screen"> -->
+    <!--   <remap from="~input" to="$(arg OUTPUT)" /> -->
+    <!--   <remap from="~target" to="euclidean_clustering/output" /> -->
+    <!--   <rosparam> -->
+    <!--     publish_clouds: false -->
+    <!--     publish_tf: false -->
+    <!--   </rosparam> -->
+    <!-- </node> -->
+    
+
+    <!-- <node pkg="nodelet" type="nodelet" -->
+    <!--       name="centroid_publisher" -->
+    <!--       args="load jsk_pcl/CentroidPublisher $(arg manager)" output="screen"> -->
+    <!--   <remap from="~input" to="cluster_decomposer/debug_output" /> -->
+    <!--   <param name="frame" value="tomato" /> -->
+    <!-- </node> -->
+
+    <!-- <node pkg="nodelet" type="nodelet" -->
+    <!--       name="extract_indices" -->
+    <!--       args="load jsk_pcl/ExtractIndices $(arg manager)" output="screen"> -->
+    <!--   <remap from="~input" to="$(arg INPUT_POINT_CLOUD)" /> -->
+    <!--   <remap from="~indices" to="euclidean_clustering/output" /> -->
+    <!--   <rosparam> -->
+    <!--     approximate_sync: true -->
+    <!--   </rosparam> -->
+    <!-- </node> -->
+  </group>
+
+</launch>

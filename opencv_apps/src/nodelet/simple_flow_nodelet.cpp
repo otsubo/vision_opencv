@@ -155,7 +155,7 @@ class SimpleFlowNodelet : public nodelet::Nodelet
       int rows = flow.rows;
       double scale_col = frame.cols/(double)flow.cols;
       double scale_row = frame.rows/(double)flow.rows;
-
+      cv::Vec2f mask;
 
       for (int i= 0; i < rows; ++i) {
         for (int j = 0; j < cols; ++j) {
@@ -172,6 +172,7 @@ class SimpleFlowNodelet : public nodelet::Nodelet
           flow_msg.point = point_msg;
           flow_msg.velocity = velocity_msg;
           flows_msg.flow.push_back(flow_msg);
+          
         }
       }
 
@@ -263,8 +264,8 @@ public:
     image_transport::SubscriberStatusCallback img_disconnect_cb = boost::bind(&SimpleFlowNodelet::img_disconnectCb, this, _1);
     ros::SubscriberStatusCallback msg_connect_cb    = boost::bind(&SimpleFlowNodelet::msg_connectCb, this, _1);
     ros::SubscriberStatusCallback msg_disconnect_cb = boost::bind(&SimpleFlowNodelet::msg_disconnectCb, this, _1);
-    img_pub_ = image_transport::ImageTransport(local_nh_).advertise("image", 1, img_connect_cb, img_disconnect_cb);
-    msg_pub_ = local_nh_.advertise<opencv_apps::FlowArrayStamped>("flows", 1, msg_connect_cb, msg_disconnect_cb);
+    img_pub_ = image_transport::ImageTransport(local_nh_).advertise("image", 20, img_connect_cb, img_disconnect_cb);
+    msg_pub_ = local_nh_.advertise<opencv_apps::FlowArrayStamped>("flows", 20, msg_connect_cb, msg_disconnect_cb);
         
     if( debug_view_ ) {
       subscriber_count_++;
